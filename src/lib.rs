@@ -3,6 +3,71 @@ use std::marker::PhantomData;
 use std::ptr::NonNull;
 use std::{mem, ptr};
 
+pub struct IntoIter<T> {
+    buf: NonNull<T>,
+    cap: usize,
+    start: *const T,
+    end: *const T,
+    _marker: PhantomData<T>,
+}
+
+impl<T> Vec<T> {
+    pub fn into_iter(self) -> IntoIter<T> {
+        // Can't destructure Vec since it's Drop
+        // let ptr = self.ptr;
+        // let cap = self.cap;
+        // let len = self.len;
+
+        mem::forget(self);
+
+        unsafe {
+            IntoIter {
+                buf: ptr,
+                cap: cap,
+                start: ptr.as_ptr(),
+                end: if cap == 0 {
+                    ptr.as_ptr()
+                } else {
+                    ptr.as_ptr().add(len)
+                },
+                _marker: PhantomData,
+            }
+        }
+    }
+}
+
+impl<T> Iterator for IntoIter<T> {
+    type Item = T;
+    fn next(&mut self) -> Option<T> {
+        if self.start == self.end {
+            None
+        } else {
+            unsafe {
+                let result = ptr::read(self.start);
+                self.start = self.start.offset(1);
+                Some(result)
+            }
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = (self.end as usize + self.start as usize) / mem::size_of::<T>();
+        (len, Some(len))
+    }
+}
+
+impl<T> DoubleEndedIterator for IntoIter<T> {
+    fn next_back(&mut self) -> Option<T> {
+        if self.start = self.end {
+            None
+        } else {
+            unsafe {
+                self.end = self.end.offset(-1);
+                Some(ptr::read(self.end))
+            }
+        }
+    }
+}
 struct RawVec<T> {
     ptr: NonNull<T>,
     cap: usize,
@@ -101,11 +166,11 @@ impl<T> Vec<T> {
 //     }
 // }
 
-pub struct IntoIter<T> {
-    _buf: RawVec<T>, // we don't actually care about this. Just need it to live.
-    start: *const T,
-    end: *const T,
-}
+// pub struct IntoIter<T> {
+//     _buf: RawVec<T>, // we don't actually care about this. Just need it to live.
+//     start: *const T,
+//     end: *const T,
+// }
 
 // next and next_back literally unchanged since they never referred to the buf
 
@@ -117,25 +182,25 @@ pub struct IntoIter<T> {
 //     }
 // }
 
-impl<T> Vec<T> {
-    pub fn into_iter(self) -> IntoIter<T> {
-        unsafe {
-            let buf = ptr::read(&self.buf);
-            let len = self.len;
-            mem::forget(self);
+// impl<T> Vec<T> {
+//     pub fn into_iter(self) -> IntoIter<T> {
+//         unsafe {
+//             let buf = ptr::read(&self.buf);
+//             let len = self.len;
+//             mem::forget(self);
 
-            IntoIter {
-                start: buf.ptr.as_ptr(),
-                end: if buf.cap == 0 {
-                    buf.ptr.as_ptr()
-                } else {
-                    buf.ptr.as_ptr().add(len)
-                },
-                _buf: buf,
-            }
-        }
-    }
-}
+//             IntoIter {
+//                 start: buf.ptr.as_ptr(),
+//                 end: if buf.cap == 0 {
+//                     buf.ptr.as_ptr()
+//                 } else {
+//                     buf.ptr.as_ptr().add(len)
+//                 },
+//                 _buf: buf,
+//             }
+//         }
+//     }
+// }
 
 #[cfg(test)]
 mod test {
