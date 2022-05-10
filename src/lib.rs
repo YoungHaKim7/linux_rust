@@ -1,7 +1,7 @@
 use std::alloc::{self, Layout};
 use std::marker::PhantomData;
-use std::mem;
 use std::ptr::NonNull;
+use std::{mem, ptr};
 
 struct RawVec<T> {
     ptr: NonNull<T>,
@@ -63,6 +63,75 @@ impl<T> Drop for RawVec<T> {
             let layout = Layout::array::<T>(self.cap).unwrap();
             unsafe {
                 alloc::dealloc(self.ptr.as_ptr() as *mut u8, layout);
+            }
+        }
+    }
+}
+pub struct Vec<T> {
+    buf: RawVec<T>,
+    len: usize,
+}
+
+impl<T> Vec<T> {
+    fn ptr(&self) -> *mut T {
+        self.buf.ptr.as_ptr()
+    }
+
+    fn cap(&self) -> usize {
+        self.buf.cap
+    }
+
+    pub fn new() -> Self {
+        Vec {
+            buf: RawVec::new(),
+            len: 0,
+        }
+    }
+
+    // push/pop/insert/remove largely unchanged:
+    // * `self.ptr.as_ptr() -> self.ptr()`
+    // * `self.cap -> self.cap()
+    // * `self.grow() -> self.buf.grow()`
+}
+
+// impl<T> Drop for Vec<T> {
+//     fn drop(&mut self) {
+//         while let Some(_) = self.pop() {}
+//         // deallocation is handled by RawVec
+//     }
+// }
+
+pub struct IntoIter<T> {
+    _buf: RawVec<T>, // we don't actually care about this. Just need it to live.
+    start: *const T,
+    end: *const T,
+}
+
+// next and next_back literally unchanged since they never referred to the buf
+
+// impl<T> Drop for IntoIter<T> {
+//     fn drop(&mut self) {
+//         // only need to ensure all our elements are read;
+//         // buffer will clean itself up afterwards.
+//         for _ in &mut *self {}
+//     }
+// }
+
+impl<T> Vec<T> {
+    pub fn into_iter(self) -> IntoIter<T> {
+        unsafe {
+            let buf = ptr::read(&self.buf);
+            let len = self.len;
+            mem::forget(self);
+
+            IntoIter {
+                start: buf.ptr.as_ptr(),
+                end: if buf.cap == 0 {
+                    buf.ptr.as_ptr()
+                } else {
+                    buf.ptr.as_ptr().add(len)
+                },
+                _buf: buf,
             }
         }
     }
