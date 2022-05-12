@@ -15,7 +15,11 @@ fn main() {
     // vec.push(3);
     // vec.push(4);
     // vec.push(5);
-    assert_eq!(vec.get(1), Some(&Dropped(2)));
+    let third_dropped = Dropped(2);
+    let expected = Some(&third_dropped);
+    println!("Going to get");
+    assert_eq!(vec.get(1), expected);
+    println!("Just got");
 
     // for n in 0..vec.len() {
     //     assert_eq!(vec.get(n), Some(&(n + 1)));
