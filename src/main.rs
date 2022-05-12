@@ -1,6 +1,6 @@
 use myvec::MyVec;
 fn main() {
-    let mut vec = Vec::<usize>::new();
+    let mut vec = MyVec::<usize>::new();
     vec.push(1usize);
     vec.push(2);
     vec.push(3);
